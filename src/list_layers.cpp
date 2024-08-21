@@ -7,6 +7,7 @@ int main(int argc, char* argv[]) {
     // Load the GDSII file
     char filename[64];
     // const char* filename = "sg13g2_stdcell.gds";  // Replace with your GDSII file
+    printf("argc: %d\n", argc);
     if(argc < 2) {
         printf("Usage: %s <gdsii file>\n", argv[0]);
         return 1;
