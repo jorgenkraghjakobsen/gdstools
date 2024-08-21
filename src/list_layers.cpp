@@ -3,13 +3,21 @@
 #include <unordered_set>
 #include <cstdio>
 
-int main() {
+int main(int argc, char* argv[]) {
     // Load the GDSII file
-    const char* filename = "sg13g2_stdcell.gds";  // Replace with your GDSII file
-    // gdstk::LibraryInfo lib_info = gdstk::gds_info(filename);
-    // gdstk::gds_info(filename, lib_info);
-    
-    // gdstk::Library lib = gdstk::read_gds(filename, );
+    char filename[64];
+    // const char* filename = "sg13g2_stdcell.gds";  // Replace with your GDSII file
+    if(argc < 2) {
+        printf("Usage: %s <gdsii file>\n", argv[0]);
+        return 1;
+    }
+    strcpy(filename, argv[1]);
+    // printf("Enter the GDSII file name: ");
+    // printf(fgets(filename, 32, stdin))
+    // if(fgets(filename, 32, stdin) != 0) {
+    //     printf("Error reading file name\n");
+    // };
+
     gdstk::Set<long unsigned int> layers;
     gdstk::ErrorCode error_code;
 
@@ -23,46 +31,11 @@ int main() {
         return 1;
     }
     printf("Successfully loaded GDS file: %s\n", filename);
-    // printf("Number of cells: %ld\n", lib.cell_array.index);
 
-    lib.cell_array.print(true);
-
-    // for (gdstk::Cell* cell : lib.cell_array) {
-    //     printf("Cell name: %s\n", cell->name);
-    // }
-    for(int i = 0; i < lib.cell_array.count; i++) {
+    for(uint64_t i = 0; i < lib.cell_array.count; i++) {
         gdstk::Cell* cell = lib.cell_array[i];
         printf("Cell name: %s\n", cell->name);
     }
-
-    // // Create a set to store unique layers
-    // std::unordered_set<int> unique_layers;
-
-    // // Iterate over all cells in the library
-    // for (const gdstk::Cell* cell : lib.cell_array) {
-    //     // Iterate over all polygons in the cell
-    //     for (const gdstk::Polygon& polygon : cell->polygon_array) {
-    //         unique_layers.insert(polygon.layer);
-    //     }
-
-    //     // Iterate over all paths in the cell
-    //     for (const gdstk::FlexPath& path : cell->flexpath_array) {
-    //         for (const gdstk::FlexPathElement& element : path.elements) {
-    //             unique_layers.insert(element.layer);
-    //         }
-    //     }
-
-    //     // Iterate over all labels in the cell
-    //     for (const gdstk::Label& label : cell->label_array) {
-    //         unique_layers.insert(label.layer);
-    //     }
-    // }
-
-    // // Print all unique layers
-    // std::cout << "Layers in the GDSII file:" << std::endl;
-    // for (int layer : unique_layers) {
-    //     std::cout << "Layer " << layer << std::endl;
-    // }
 
     return 0;
 }
