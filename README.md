@@ -28,9 +28,6 @@ Qhull is a library used for computing convex hulls, Delaunay triangulations, and
     sudo make install
     ```
 
-3. **Verify the installation:** *Optional*
-    Ensure that the Qhull library and headers are installed in a standard location like `/usr/local/lib` and `/usr/local/include`, or a directory included in your `CMAKE_PREFIX_PATH` or `LD_LIBRARY_PATH`.
-
 ## Step 2: Install zlib
 
 zlib is a compression library required for handling compressed data formats.
@@ -49,9 +46,6 @@ zlib is a compression library required for handling compressed data formats.
     sudo make install
     ```
 
-3. **Verify the installation:** *Optional*
-    Check that the zlib library and headers are installed in the correct locations (e.g., `/usr/local/lib` and `/usr/local/include`).
-
 ## Step 3: Install gdstk
 
 gdstk is a library for creating, manipulating, and reading GDSII files, which are used in integrated circuit layout design.
@@ -68,9 +62,6 @@ gdstk is a library for creating, manipulating, and reading GDSII files, which ar
     cmake --build build --target install
     ```
 
-3. **Verify the installation:**
-    Confirm that the gdstk library and headers are installed in the appropriate locations (e.g., `/usr/local/lib` and `/usr/local/include`).
-
 ## Step 4: Compile and run GDSTOOLS
 
 With Qhull, zlib, and gdstk installed, you can now compile your project. Assuming you have a CMake-based project, follow these steps:
@@ -84,7 +75,7 @@ With Qhull, zlib, and gdstk installed, you can now compile your project. Assumin
     ```sh
     ./list_layers
     ```
-    
+
 ### Note:
 
 - Ensure that the library paths for Qhull, zlib, and gdstk are included in your `LD_LIBRARY_PATH` or specified in your project's CMake configuration.
