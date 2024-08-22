@@ -8,10 +8,10 @@ CXXFLAGS = -Wall -O2
 LIBS = -lgdstk -lz -lqhull -lqhull_r -lclipper
 
 # Source files
-SRC = src/list_layers.cpp
+SRC = src/gdstool.cpp
 
 # Output binary
-TARGET = build/list_layers
+TARGET = build/gdstool
 
 # Build the target
 $(TARGET): $(SRC)
