@@ -1,6 +1,6 @@
 #!/bin/bash
 
-_gds_complete() {
+_gdst_complete() {
     local cur prev opts commands
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -8,7 +8,7 @@ _gds_complete() {
     commands="list_cells lc open_3d_cell ocv help"
 
     case "${prev}" in
-        gds)
+        gdst)
             COMPREPLY=( $(compgen -W "${commands}" -- ${cur}) )
             return 0
             ;;
@@ -33,4 +33,4 @@ _gds_complete() {
     esac
 }
 
-complete -F _gds_complete gds
+complete -F _gdst_complete gds

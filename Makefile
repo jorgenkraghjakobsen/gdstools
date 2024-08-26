@@ -8,10 +8,10 @@ CXXFLAGS = -Wall -O2
 LIBS = -lgdstk -lz -lqhull -lqhull_r -lclipper
 
 # Source files
-SRC = src/gds.cpp
+SRC = src/gdst.cpp
 
 # Output binary
-TARGET = build/gds
+TARGET = build/gdst
 
 # Build the target
 $(TARGET): $(SRC)
