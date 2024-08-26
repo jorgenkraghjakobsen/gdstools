@@ -1,0 +1,22 @@
+#compdef gdst
+
+_gdst_complete() {
+    local state
+    typeset -A opt_args
+
+    _arguments \
+        '1:command:(list_cells lc open_3d_cell ocv help)' \
+        '(-f --file)'{-f,--file}'[Specify GDS file]:GDS file:_files -g "*.gds{,ii}"' \
+        '(-c --cellname)'{-c,--cellname}'[Specify cell name]:cell name:->cells'
+
+    case $state in
+        cells)
+            if [[ -z "$cells" ]]; then
+                cells=$(gdst lc)
+            fi
+            _wanted cells expl 'cell name' compadd "$@" ${(ps: :)cells}
+            ;;
+    esac
+}
+
+compdef _gdst_complete gdst
