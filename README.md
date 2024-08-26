@@ -2,7 +2,19 @@
 
 This project requires the Qhull, zlib, and gdstk libraries to be compiled and installed before you can compile and run the code. Below are the steps to set up these dependencies.
 
-## Prerequisites
+## Completion
+
+### Bash
+```sh
+    source completion/gdst_completion.sh
+```
+
+### Zsh
+```sh
+    source completion/gdstz_completion.sh
+```
+
+## Prerequisites - Installation
 
 Before proceeding, ensure you have the following tools installed:
 
