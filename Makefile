@@ -17,6 +17,7 @@ TARGET = build/gdst
 
 # Build the target
 $(TARGET): $(SRC)
+	mkdir -p build
 	$(CXX) $(CXXFLAGS) $(SRC) $(LIBS) -o $(TARGET)
 
 
