@@ -25,6 +25,7 @@ import time
 import pygltflib
 from pygltflib import BufferFormat
 from pygltflib.validator import validate, summary
+from pygltflib.utils import gltf2glb
 
 def read_layerstack_from_file(filename):
     """Reads a layerstack from a text file.
@@ -61,6 +62,11 @@ def read_layerstack_from_file(filename):
                     'color': [float(color_r), float(color_g), float(color_b), float(color_a)]
                 }
     return layerstack
+
+def export_glb(gltf_filename):
+    # glb_filename = gltf_filename.replace(".gltf", ".glb")
+    gltf2glb(gltf_filename)
+    print(f"GLB file saved as {gltf_filename.replace('.gltf', '.glb')}")
 
 
 # get the input file name
@@ -508,5 +514,6 @@ gltf.scene = 0
 print ("\nWriting glTF file:")
 gltf.save(gdsii_file_path + ".gltf")
 # gltf.save("output.gltf")
+export_glb(gdsii_file_path + ".gltf")
 
 print('Done.')

@@ -22,7 +22,19 @@ Before proceeding, ensure you have the following tools installed:
 - CMake (for Qhull and zlib)
 - Git (to clone repositories)
 
-## Step 1: Install Qhull
+## GDS2glTF
+This code is copied from this [repo](https://github.com/mbalestrini/GDS2glTF). 
+The code is changed to include layerstack txt file, and can make binaries instead of JSON files.
+
+Python libraries requirements:
+```
+numpy
+gdspy
+triangle
+pygltflib
+```
+
+## Install Qhull
 
 Qhull is a library used for computing convex hulls, Delaunay triangulations, and Voronoi diagrams.
 
@@ -40,7 +52,7 @@ Qhull is a library used for computing convex hulls, Delaunay triangulations, and
     sudo make install
     ```
 
-## Step 2: Install zlib
+## Install zlib
 
 zlib is a compression library required for handling compressed data formats.
 
@@ -58,7 +70,7 @@ zlib is a compression library required for handling compressed data formats.
     sudo make install
     ```
 
-## Step 3: Install gdstk
+## Install gdstk
 
 gdstk is a library for creating, manipulating, and reading GDSII files, which are used in integrated circuit layout design.
 
