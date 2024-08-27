@@ -5,7 +5,7 @@ _gdst_complete() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    commands="list_cells lc open_3d_cell ocv help"
+    commands="list_cells lc open_3d_cell ocv export_gltf eg help"
     cells=""
 
     case "${prev}" in
@@ -23,18 +23,31 @@ _gdst_complete() {
             COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
             return 0
             ;;
+        export_gltf|eg)
+            opts="--file -f --layerstack -l"
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
         --file|-f)
             COMPREPLY=( $(compgen -f -- ${cur} | grep -E '\.(gds|gdsii)$') )
             return 0
             ;;
         --cellname|-c)
-            # Additional logic for cell name completion can be added here
             if [ -z "$cells" ]; then
                 cells=$(gdst lc)
             fi
             COMPREPLY=( $(compgen -W "${cells}" -- ${cur}) )
             return 0
             ;;
+        --layerstack|-l)
+            local directories files
+            directories=( $(compgen -d -S / -- ${cur}))
+            files=( $(compgen -f -- ${cur} | grep -E '\.(txt)$') )
+            COMPREPLY=( ${directories[@]} ${files[@]} )
+            return 0
+            ;;
+
+
     esac
 }
 

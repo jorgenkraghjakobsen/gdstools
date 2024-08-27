@@ -105,8 +105,9 @@ int main(int argc, char* argv[]) {
 int print_help(cxxopts::Options& options) {
     printf("%s\n", options.help().c_str());
     printf("Commands:\n");
-    printf("  list_cells, lc - List cells in a GDSII file\n");
-    printf("  open_3d_cell, ocv - Open a 3D view of a cell\n");
+    printf("  list_cells, lc        - List cells in a GDSII file\n");
+    printf("  open_3d_cell, ocv     - Open a 3D view of a cell\n");
+    printf("  export_gltf, eg       - Export GDSII file to GLTF\n");
     return 0;
 }
 
