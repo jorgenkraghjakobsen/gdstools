@@ -52,6 +52,10 @@ int main(int argc, char* argv[]) {
             std::string cell_name = result["cellname"].as<std::string>();
             return open_3d_cell(filename, cell_name);
 
+        } else if (command == "export_gltf" || command == "eg") {
+            printf("Exporting to GLTF\n");
+            return 0;
+
         } else {
             printf("Invalid command\n");
             print_help(options);
