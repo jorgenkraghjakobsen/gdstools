@@ -2,6 +2,7 @@
 #include <iostream>
 #include <unordered_set>
 #include <cstdio>
+#include <cstdlib>
 
 int main(int argc, char* argv[]) {
     try {
@@ -10,7 +11,8 @@ int main(int argc, char* argv[]) {
         options.add_options()
             ("h,help", "Print usage")
             ("f,file", "GDSII file", cxxopts::value<std::string>())
-            ("c,cellname", "Cell name", cxxopts::value<std::string>());
+            ("c,cellname", "Cell name", cxxopts::value<std::string>())
+            ("l,layerstack", "Layer stack file", cxxopts::value<std::string>());
 
         cxxopts::ParseResult result = options.parse(argc, argv);
 
@@ -55,11 +57,37 @@ int main(int argc, char* argv[]) {
         } else if (command == "export_gltf" || command == "eg") {
             printf("Exporting to GLTF\n");
             // Call the Python script to perform the conversion
-            int result = system("python3 path/to/your_script.py");
+            std::string filename;
+            std::string layerstack;
+            if (!result.count("file")) {
+                filename = get_filename_from_file();
+                if (filename == "") {
+                    printf("Error: GDSII file not specified\n");
+                    return 1;
+                }
+
+            } else {
+                filename = result["file"].as<std::string>();
+            }
+
+            if(!result.count("layerstack")) {
+                printf("Error: Layer stack file not specified\n");
+                return 1;
+            } else {
+                layerstack = result["layerstack"].as<std::string>();
+            }
+
+            std::string command = "gds2gltf " + filename + " " + layerstack;
+            int result = system(command.c_str());
+            
             if (result == 0) {
                 printf("GLTF export successful\n");
             } else {
                 printf("GLTF export failed\n");
+                printf("Command: %s\n", command.c_str());
+                printf("Result: %d\n", result); 
+                printf("Check if gds2gltf and libraries is installed\n");
+                return 1;
             }
             return 0;
 

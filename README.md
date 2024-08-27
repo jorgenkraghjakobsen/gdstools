@@ -22,6 +22,12 @@ Before proceeding, ensure you have the following tools installed:
 - CMake (for Qhull and zlib)
 - Git (to clone repositories)
 
+```sh
+make
+sudo make install
+```
+It will install gdst and the python converter.
+
 ## GDS2glTF
 This code is copied from this [repo](https://github.com/mbalestrini/GDS2glTF). 
 The code is changed to include layerstack txt file, and can make binaries instead of JSON files.
