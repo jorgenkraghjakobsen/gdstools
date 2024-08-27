@@ -54,6 +54,13 @@ int main(int argc, char* argv[]) {
 
         } else if (command == "export_gltf" || command == "eg") {
             printf("Exporting to GLTF\n");
+            // Call the Python script to perform the conversion
+            int result = system("python3 path/to/your_script.py");
+            if (result == 0) {
+                printf("GLTF export successful\n");
+            } else {
+                printf("GLTF export failed\n");
+            }
             return 0;
 
         } else {
