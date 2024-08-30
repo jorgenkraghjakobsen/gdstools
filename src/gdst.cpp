@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
+#include <unistd.h>
 
 int main(int argc, char* argv[]) {
     try {
@@ -112,7 +113,7 @@ int print_help(cxxopts::Options& options) {
 }
 
 std::string get_filename_from_file() {
-    FILE* tmp_file = fopen(".tmp_file", "r");
+    FILE* tmp_file = fopen("/var/tmp/.tmp_gdst_file", "r");
     if (tmp_file == NULL) {
         printf("No file was opened with list_cells\n");
         return "";
@@ -126,15 +127,21 @@ std::string get_filename_from_file() {
 }
 
 int save_filename_to_file(const std::string& filename) {
-    FILE* tmp_file = fopen(".tmp_file", "w");
+    FILE* tmp_file = fopen("/var/tmp/.tmp_gdst_file", "w");
     if (tmp_file == NULL) {
         printf("Failed to open .tmp_file\n");
         return 1;
     }
+    char full_path[4096];
 
-    fprintf(tmp_file, "%s", filename.c_str());
+    char* res = realpath(filename.c_str(), full_path);
+    if (res == NULL) {
+        printf("Failed to get the full path: %s\n", strerror(errno));
+        perror("Failed to get the full path");
+        return 1;
+    }
+    fprintf(tmp_file, "%s\n", full_path);
     fclose(tmp_file);
-
     return 0;
 }
 
