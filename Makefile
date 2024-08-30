@@ -27,6 +27,9 @@ PYTHON_SCRIPT = src/gds2gltf.py
 
 # Installation directory
 PREFIX = /usr/local
+LAYERSTACK_DIR = data/layerstack
+LAYERSTACK_FILES = $(wildcard $(LAYERSTACK_DIR)/*.txt)
+SHARE_DIR = $(DESTDIR)/usr/local/share/gdst
 
 # Install the target and the Python script
 install: $(TARGET)
@@ -34,10 +37,17 @@ install: $(TARGET)
 	install -m 755 $(TARGET) $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 $(PYTHON_SCRIPT) $(DESTDIR)$(PREFIX)/bin/gds2gltf
 
+	install -d $(SHARE_DIR)
+	cp -r $(LAYERSTACK_DIR)/*.txt $(SHARE_DIR)
+
 # Uninstall the target and the Python script
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/$(notdir $(TARGET))
 	rm -f $(DESTDIR)$(PREFIX)/bin/gds2gltf
+
+	# Remove the text files and the directory if empty
+	rm -f $(addprefix $(SHARE_DIR), $(notdir $(LAYERSTACK_FILES)))
+	-rmdir $(SHARE_DIR) 2>/dev/null || true
 
 
 # Clean up build artifacts

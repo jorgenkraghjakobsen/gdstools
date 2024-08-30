@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
+#include <sys/stat.h>
 
 int main(int argc, char* argv[]) {
     try {
@@ -75,7 +76,19 @@ int main(int argc, char* argv[]) {
                 printf("Error: Layer stack file not specified\n");
                 return 1;
             } else {
+                if(!check_file_exists(result["layerstack"].as<std::string>())) {
+                    if(!check_file_exists("/usr/local/share/gdst/" + result["layerstack"].as<std::string>())) {
+                        printf("Error: Layer stack file does not exist\n");
+                        return 1;
+
+                    } else {
+                        layerstack = "/usr/local/share/gdst/" + result["layerstack"].as<std::string>();
+                    }
+
+                } else {
                 layerstack = result["layerstack"].as<std::string>();
+
+                }
             }
 
             std::string command = "gds2gltf " + filename + " " + layerstack;
@@ -124,6 +137,11 @@ std::string get_filename_from_file() {
     fclose(tmp_file);
 
     return std::string(filename);
+}
+
+bool check_file_exists(const std::string& filename) {
+    struct stat buffer;
+    return (stat(filename.c_str(), &buffer) == 0);
 }
 
 int save_filename_to_file(const std::string& filename) {

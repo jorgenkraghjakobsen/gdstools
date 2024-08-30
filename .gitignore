@@ -2,3 +2,5 @@
 
 # Ignore everything in the build directory
 build/
+data/*.glb
+data/*.gltf
