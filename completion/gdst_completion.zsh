@@ -1,51 +1,66 @@
-#compdef gdst
+#!/bin/zsh
 
 _gdst_complete() {
-    local cur prev opts commands cells
+    local -a commands opts cells files dirs
 
-    _arguments \
-        '1: :->command' \
-        '2: :->option' \
-        '3: :->value' \
-        && return 0
+    # The current word being completed
+    local cur prev
+    cur="${words[CURRENT]}"
+    prev="${words[CURRENT-1]}"
 
-    case "$state" in
-        command)
-            commands=("list_cells" "lc" "open_3d_cell" "ocv" "export_gltf" "eg" "help")
-            _describe 'command' commands
-            ;;
-        option)
-            case "$prev" in
-                list_cells|lc)
-                    opts=("--file" "-f")
-                    _describe 'option' opts
-                    ;;
-                open_3d_cell|ocv)
-                    opts=("--cellname" "-c")
-                    _describe 'option' opts
-                    ;;
-                export_gltf|eg)
-                    opts=("--file" "-f" "--layerstack" "-l")
-                    _describe 'option' opts
-                    ;;
-                --file|-f)
-                    _files -g '*.(gds|gdsii)'
-                    ;;
-                --cellname|-c)
-                    if [ -z "$cells" ]; then
-                        cells=$(gdst lc)
-                    fi
-                    _describe 'cell name' ${(f)cells}
-                    ;;
-                --layerstack|-l)
-                    local directories files
-                    directories=($(compgen -d -S / -- "$cur"))
-                    files=($(compgen -f -- "$cur" | grep -E '\.(txt)$'))
-                    _describe 'file or directory' "${directories[@]}" "${files[@]}"
-                    ;;
-            esac
-            ;;
-    esac
+    # Define command names
+    commands=("list_cells" "lc" "open_3d_cell" "ocv" "export_gltf" "eg" "help")
+
+    # Completion for the main command
+    if [[ "$prev" == "gdst" ]]; then
+        _describe -t commands 'gdst commands' commands
+        return
+    fi
+
+    # Completion options for list_cells or lc
+    if [[ "$prev" == "list_cells" || "$prev" == "lc" ]]; then
+        opts=("--file" "-f")
+        _describe -t opts 'options' opts
+        return
+    fi
+
+    # Completion options for open_3d_cell or ocv
+    if [[ "$prev" == "open_3d_cell" || "$prev" == "ocv" ]]; then
+        opts=("--cellname" "-c")
+        _describe -t opts 'options' opts
+        return
+    fi
+
+    # Completion options for export_gltf or eg
+    if [[ "$prev" == "export_gltf" || "$prev" == "eg" ]]; then
+        opts=("--file" "-f" "--layerstack" "-l")
+        _describe -t opts 'options' opts
+        return
+    fi
+
+    # File completion for --file or -f
+    if [[ "$prev" == "--file" || "$prev" == "-f" ]]; then
+        _files -g '*.(gds|gdsii)'
+        return
+    fi
+
+    # Completion for cell names for --cellname or -c
+    if [[ "$prev" == "--cellname" || "$prev" == "-c" ]]; then
+        if [[ -z "$cells" ]]; then
+            cells=("${(@s: :)$(gdst lc)}")
+        fi
+        _describe -t cells 'cell names' cells
+        return
+    fi
+
+    # File or directory completion for --layerstack or -l
+    if [[ "$prev" == "--layerstack" || "$prev" == "-l" ]]; then
+        dirs=(${(f)"$(compgen -d)"})
+        files=(${(f)"$(compgen -f)"})
+        _describe -t dirs 'directories' dirs
+        _describe -t files 'files' files
+        return
+    fi
 }
 
 compdef _gdst_complete gdst
