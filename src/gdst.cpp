@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <curl/curl.h>
 
 int main(int argc, char* argv[]) {
     try {
@@ -91,18 +92,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            std::string command = "gds2gltf " + filename + " " + layerstack;
-            int result = system(command.c_str());
-            
-            if (result == 0) {
-                printf("GLTF export successful\n");
-            } else {
-                printf("GLTF export failed\n");
-                printf("Command: %s\n", command.c_str());
-                printf("Result: %d\n", result); 
-                printf("Check if gds2gltf and libraries is installed\n");
-                return 1;
-            }
+            return export_gltf_file(filename, layerstack);
+
             return 0;
 
         } else {
@@ -215,6 +206,67 @@ int open_3d_cell(const std::string& filename, const std::string& cell_name) {
         printf("Failed to run GDS3D\n");
         return 1;
     }
+
+    return 0;
+}
+
+int export_gltf_file(const std::string& filename, const std::string& layerstack) {
+    // Call the Python script to perform the conversion
+    std::string command = "gds2gltf " + filename + " " + layerstack;
+    int result = system(command.c_str());
+    
+    if (result == 0) {
+        printf("GLTF export successful\n");
+    } else {
+        printf("GLTF export failed\n");
+        printf("Command: %s\n", command.c_str());
+        printf("Result: %d\n", result); 
+        printf("Check if gds2gltf and libraries is installed\n");
+        return 1;
+    }
+
+    // Ask if user wants to upload the file to the server
+    std::string upload;
+    printf("Do you want to upload the file to the server? (y/n): ");
+    std::cin >> upload;
+
+    if (upload != "y" && upload != "Y") {
+        return 0;
+    }
+
+    // Upload the file to the server
+    CURL *curl;
+    CURLcode res;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    std::string upload_filename = filename + ".glb";
+    if (curl) {
+        const char* url = "https://anyvej11.dk/vr/upload_files";
+        curl_mime *mime;
+        curl_mimepart *part;
+
+        mime = curl_mime_init(curl);
+
+        part = curl_mime_addpart(mime);
+        curl_mime_name(part, "uploaded_file");
+        curl_mime_filedata(part, upload_filename.c_str());
+
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+
+        res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            return 1;
+        }
+
+        curl_easy_cleanup(curl);
+        curl_mime_free(mime);
+    }
+
+    curl_global_cleanup();
+    printf("File uploaded to server. \n");
+    printf("URL: https://anyvej11.dk/vr/\n");
 
     return 0;
 }

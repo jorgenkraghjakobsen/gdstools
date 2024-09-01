@@ -17,5 +17,6 @@ std::unique_ptr<gdstk::Library> read_gds_file(cxxopts::ParseResult result, std::
 
 int list_cells(gdstk::Library lib);
 int open_3d_cell(const std::string& filename, const std::string& cell_name);
+int export_gltf_file(const std::string& filename, const std::string& layerstack);
 
 #endif // GDSTOOL_H

@@ -55,10 +55,15 @@ _gdst_complete() {
 
     # File or directory completion for --layerstack or -l
     if [[ "$prev" == "--layerstack" || "$prev" == "-l" ]]; then
-        dirs=(${(f)"$(compgen -d)"})
-        files=(${(f)"$(compgen -f)"})
-        _describe -t dirs 'directories' dirs
-        _describe -t files 'files' files
+        target_dir="/usr/local/share/gdst"
+
+        text_files=(${target_dir}/*.txt)
+
+        # If you want to include other extensions (e.g., .md, .log), you can add them:
+        # text_files=(${target_dir}/*.(txt|md|log))
+
+        # Describe the text files for completion
+        _describe -t files 'text files' text_files
         return
     fi
 }

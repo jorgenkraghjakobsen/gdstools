@@ -7,7 +7,7 @@ CXX = g++
 CXXFLAGS = -Wall -O2
 
 # Libraries to link against
-LIBS = -lgdstk -lz -lqhull -lqhull_r -lclipper
+LIBS = -lgdstk -lz -lqhull -lqhull_r -lclipper -lcurl
 
 # Source files
 SRC = src/gdst.cpp
