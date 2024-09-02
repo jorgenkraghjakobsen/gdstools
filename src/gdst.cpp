@@ -40,7 +40,15 @@ int main(int argc, char* argv[]) {
 
             return 0;
 
+        } else if (command == "open_3d" || command == "o3d") {
+            std::string filename = get_filename_from_file();
+            if(filename == "") {
+                printf("Error: GDSII file not specified and cant be read from file\n");
+                return 1;
+            }
 
+            return open_3d_cell(filename, "");
+        
         } else if (command == "open_3d_cell" || command == "ocv") {
             if (!result.count("cellname")) {
                 printf("Error: Cell name not specified\n");
@@ -111,6 +119,7 @@ int print_help(cxxopts::Options& options) {
     printf("%s\n", options.help().c_str());
     printf("Commands:\n");
     printf("  list_cells, lc        - List cells in a GDSII file\n");
+    printf("  open_3d, o3d          - Open a 3D view of a GDSII file\n");
     printf("  open_3d_cell, ocv     - Open a 3D view of a cell\n");
     printf("  export_gltf, eg       - Export GDSII file to GLTF\n");
     return 0;
@@ -199,7 +208,14 @@ int list_cells(gdstk::Library lib) {
 
 int open_3d_cell(const std::string& filename, const std::string& cell_name) {
     // Run system command
-    std::string command = "GDS3D -i " + filename + " -p sg13g2.txt -t " + cell_name;
+    
+    std::string command;
+    if(cell_name == "") {
+        command = "GDS3D -i " + filename + " -p sg13g2.txt";
+    } else {
+        command = "GDS3D -i " + filename + " -p sg13g2.txt -t " + cell_name;
+    }
+    //  = "GDS3D -i " + filename + " -p sg13g2.txt -t " + cell_name;
 
     int ret = system(command.c_str());
     if (ret != 0) {
