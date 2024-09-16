@@ -22,6 +22,9 @@ Before proceeding, ensure you have the following tools installed:
 - CMake (for Qhull and zlib)
 - Git (to clone repositories)
 
+To get the rest run: 
+`sudo apt-get install libcurl4-openssl-dev`
+
 ```sh
 make
 sudo make install

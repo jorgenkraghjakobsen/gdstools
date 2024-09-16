@@ -40,14 +40,16 @@ _gdst_complete() {
             return 0
             ;;
         --layerstack|-l)
-            local directories files
-            directories=( $(compgen -d -S / -- ${cur}))
-            files=( $(compgen -f -- ${cur} | grep -E '\.(txt)$') )
-            COMPREPLY=( ${directories[@]} ${files[@]} )
+            local target_dir="/usr/local/share/gdst"
+
+            # Use find to list text files, handle filenames with spaces
+            local text_files
+            text_files=$(find "$target_dir" -maxdepth 1 -type f -name '*.txt' | paste -sd " ")
+
+            # Generate completions
+            COMPREPLY=($(compgen -W "${text_files}" -- ${cur}))
             return 0
             ;;
-
-
     esac
 }
 
