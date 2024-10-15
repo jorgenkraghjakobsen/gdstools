@@ -255,7 +255,8 @@ int export_gltf_file(const std::string& filename, const std::string& layerstack)
     CURLcode res;
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
-    std::string upload_filename = filename + ".glb";
+    std::string upload_filename = filename + ".gltf";
+    printf("Uploading file: %s\n", upload_filename.c_str());
     if (curl) {
         const char* url = "https://anyvej11.dk/vr/upload_files";
         curl_mime *mime;

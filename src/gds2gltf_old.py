@@ -53,7 +53,7 @@ def read_layerstack_from_file(filename):
             line = line.strip()
             if line and not line.startswith('#'):  # Skip comments
                 layer_name, gds_number, gds_datatype, zmin, zmax, color_r, color_g, color_b, color_a = line.split()
-                layerstack[(int(gds_number), int(gds_datatype))] = {
+                layerstack[(int(gds_number), 0)] = {
                     'gds_number': int(gds_number),
                     'gds_datatype': int(gds_datatype), 
                     'name': layer_name,
@@ -61,7 +61,6 @@ def read_layerstack_from_file(filename):
                     'zmax': float(zmax),
                     'color': [float(color_r), float(color_g), float(color_b), float(color_a)]
                 }
-    
     return layerstack
 
 def export_glb(gltf_filename):
@@ -77,6 +76,53 @@ if len(sys.argv) < 3:
 
 gdsii_file_path = sys.argv[1]
 layerstack_file_path = sys.argv[2]
+
+########## CONFIGURATION (EDIT THIS PART) #####################################
+
+# choose which GDSII layers to use
+ 
+# layerstack = {    
+#     (235,4): {'name':'substrate', 'zmin':-2, 'zmax':0, 'color':[ 0.2, 0.2, 0.2, 1.0]},
+#     (64,20): {'name':'nwell', 'zmin':-0.5, 'zmax':0.01, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     # (65,44): {'name':'tap', 'zmin':0, 'zmax':0.1, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (65,20): {'name':'diff', 'zmin':-0.12, 'zmax':0.02, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
+#     (66,20): {'name':'poly', 'zmin':0, 'zmax':0.18, 'color':[ 0.75, 0.35, 0.46, 1.0]},    
+#     (66,44): {'name':'licon', 'zmin':0, 'zmax':0.936, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (67,20): {'name':'li1', 'zmin':0.936, 'zmax':1.136, 'color':[ 1.0, 0.81, 0.55, 1.0]},    
+#     (67,44): {'name':'mcon', 'zmin':1.011, 'zmax':1.376, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (68,20): {'name':'met1', 'zmin':1.376, 'zmax':1.736, 'color':[ 0.16, 0.38, 0.83, 1.0]},    
+#     (68,44): {'name':'via', 'zmin':1.736,'zmax':2, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (69,20): {'name':'met2', 'zmin':2, 'zmax':2.36, 'color':[ 0.65, 0.75, 0.9, 1.0]},    
+#     (69,44): {'name':'via2', 'zmin':2.36, 'zmax':2.786, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (70,20): {'name':'met3', 'zmin':2.786, 'zmax':3.631, 'color':[ 0.2, 0.62, 0.86, 1.0]},    
+#     (70,44): {'name':'via3', 'zmin':3.631, 'zmax':4.0211, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (71,20): {'name':'met4', 'zmin':4.0211, 'zmax':4.8661, 'color':[ 0.15, 0.11, 0.38, 1.0]},    
+#     (71,44): {'name':'via4', 'zmin':4.8661, 'zmax':5.371, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (72,20): {'name':'met5', 'zmin':5.371, 'zmax':6.6311, 'color':[ 0.4, 0.4, 0.4, 1.0]},
+#     # (83,44): { 'zmin':0, 'zmax':0.1, 'name':'text'},
+# }
+
+# layerstack = {    
+#     (235,4): {'name':'substrate', 'zmin':-1, 'zmax':0, 'color':[ 0.2, 0.2, 0.2, 1.0]},
+#     # (64,20): {'name':'nwell', 'zmin':0, 'zmax':0.1, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     # (65,44): {'name':'tap', 'zmin':0, 'zmax':0.1, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (65,20): {'name':'diff', 'zmin':-0.12, 'zmax':0.01, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
+#     (66,20): {'name':'poly', 'zmin':0, 'zmax':0.18, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (66,44): {'name':'licon', 'zmin':0, 'zmax':0.936, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (67,20): {'name':'li1', 'zmin':0.936, 'zmax':1.136, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
+#     (67,44): {'name':'mcon', 'zmin':1.011, 'zmax':1.376, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (68,20): {'name':'met1', 'zmin':1.376, 'zmax':1.736, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (68,44): {'name':'via', 'zmin':1.736,'zmax':2, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (69,20): {'name':'met2', 'zmin':2, 'zmax':2.36, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
+#     (69,44): {'name':'via2', 'zmin':2.36, 'zmax':2.786, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (70,20): {'name':'met3', 'zmin':2.786, 'zmax':3.631, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (70,44): {'name':'via3', 'zmin':3.631, 'zmax':4.0211, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (71,20): {'name':'met4', 'zmin':4.0211, 'zmax':4.8661, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
+#     (71,44): {'name':'via4', 'zmin':4.8661, 'zmax':5.371, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (72,20): {'name':'met5', 'zmin':5.371, 'zmax':6.6311, 'color':[ 0.4, 0.4, 0.4, 1.0]},
+#     # (83,44): { 'zmin':0, 'zmax':0.1, 'name':'text'},
+# }
+
 
 ########## INPUT ##############################################################
 
@@ -142,28 +188,23 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         layers[lnum] = [] if not lnum in layers else layers[lnum]
         # add paths (converted to polygons) that layer
         for poly in path.get_polygons():
-            print(poly)
             layers[lnum].append((poly, None, False))
 
     print ("\tpolygons loop. total polygons:" , len(cell.polygons))
-
+    # loop through polygons (and boxes) in cell
     for polygon in cell.polygons:
-        # Get the first layer and datatype of the polygon
-        layer_and_type = (polygon.layers[0], polygon.datatypes[0])
+        lnum = (polygon.layers[0],polygon.datatypes[0]) # same as before...
 
-        # If the layer-datatype pair is not in the layerstack, skip to the next polygon
-        if layer_and_type not in layerstack:
+        if not lnum in layerstack.keys():
             continue
 
-        # Ensure the 'layers' dictionary has an entry for the current layer-datatype pair
-        if layer_and_type not in layers:
-            layers[layer_and_type] = []
+        layers[lnum] = [] if not lnum in layers else layers[lnum]
+        for poly in polygon.polygons:
+            layers[lnum].append((poly, None, False))
 
-        # Loop through each individual polygon in the polygon object
-        for sub_polygon in polygon.polygons:
-            # Append the sub-polygon to the layers dictionary with placeholder values
-            layers[layer_and_type].append((sub_polygon, None, False))
 
+    
+    
     """
     At this point, "layers" is a Python dictionary structured as follows:
 
@@ -195,12 +236,10 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
 
     
     num_triangles = {} # will store the number of triangles for each layer
-    print(f"\t{len(layers)} layers found")
+
     # loop through all layers
     for layer_number, polygons in layers.items():
-        print(f"\tLayer {layer_number} has {len(polygons)} polygons, name: {layerstack[layer_number]['name']}")
-        # print(f"\tLayer name: {layerstack[layer_number]['name']}")
-        # print(f"\tLayer {layer_number} has {len(polygons)} polygons")
+
         # but skip layer if it won't be exported
         if not layer_number in layerstack.keys():
             continue
@@ -225,49 +264,24 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
             # this confuses the triangulation library, which fills the holes
             # with extra triangles. Avoid this by moving each edge back a
             # very small amount so that no two edges of the same polygon overlap.
-
-            # Define a small threshold to avoid division by very small numbers (to prevent NaNs or infinities)
-            epsilon = 1e-8  
-            delta = 0.00001  # Amount to inset each vertex by (smaller values have caused issues in the past)
-
-            # Step 1: Extract polygon points
-            points_i = polygon  # Get the list of points representing the polygon vertices
-
-            # Step 2: Shift points to get neighbors
-            points_j = np.roll(points_i, -1, axis=0)  # Shift points forward by 1 (next point)
-            points_k = np.roll(points_i, 1, axis=0)   # Shift points backward by 1 (previous point)
-
-            # Step 3: Calculate normals for edges (between consecutive vertices)
-            # Normal between current and next vertex (i -> j)
-            normal_ij = np.stack((points_j[:, 1] - points_i[:, 1],  # y-component difference
-                                points_i[:, 0] - points_j[:, 0]), axis=1)  # x-component difference (perpendicular)
-
-            # Normal between current and previous vertex (i -> k)
-            normal_ik = np.stack((points_i[:, 1] - points_k[:, 1],  # y-component difference
-                                points_k[:, 0] - points_i[:, 0]), axis=1)  # x-component difference (perpendicular)
-
-            # Step 4: Compute the lengths of these normal vectors
+            delta = 0.00001 # inset each vertex by this much (smaller has broken one file)
+            points_i = polygon # get list of points
+            points_j = np.roll(points_i, -1, axis=0) # shift by 1
+            points_k = np.roll(points_i, 1, axis=0) # shift by -1
+            # calculate normals for each edge of each vertex (in parallel, for speed)
+            normal_ij = np.stack((points_j[:, 1]-points_i[:, 1],
+                                points_i[:, 0]-points_j[:, 0]), axis=1)
+            normal_ik = np.stack((points_i[:, 1]-points_k[:, 1],
+                                points_k[:, 0]-points_i[:, 0]), axis=1)
             length_ij = np.linalg.norm(normal_ij, axis=1)
             length_ik = np.linalg.norm(normal_ik, axis=1)
-
-            # Step 5: Handle small lengths to avoid division by near-zero values
-            length_ij[length_ij < epsilon] = 1  # Set very small lengths to 1 to avoid division issues
-            length_ik[length_ik < epsilon] = 1  # Set very small lengths to 1
-
-            # Step 6: Normalize the normals (unit vectors)
-            normal_ij /= np.stack((length_ij, length_ij), axis=1)  # Normalize by dividing by length
-            normal_ik /= np.stack((length_ik, length_ik), axis=1)  # Normalize by dividing by length
-
-            # Step 7: Adjust direction of normals if polygon is oriented clockwise
+            normal_ij /= np.stack((length_ij, length_ij), axis=1)
+            normal_ik /= np.stack((length_ik, length_ik), axis=1)
             if clockwise:
-                normal_ij = -normal_ij  # Reverse direction for clockwise orientation
-                normal_ik = -normal_ik
-
-            # Step 8: Move each vertex inward by 'delta' along its two edge normals
-            # Each vertex is moved inward along both the normal to its adjacent edges
-            polygon = points_i - delta * normal_ij - delta * normal_ik
-
-
+                normal_ij = -1*normal_ij
+                normal_ik = -1*normal_ik
+            # move each vertex inward along its two edge normals
+            polygon = points_i - delta*normal_ij - delta*normal_ik
 
             # In an extreme case of the above, the polygon edge doubles back on
             # itself on the same line, resulting in a zero-width segment. I've
@@ -309,6 +323,8 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
             num_triangles[layer_number] += num_polygon_points*2 + \
                                         len(triangles['triangles'])*2
             polygons[index] = (polygon, triangles, clockwise)
+
+
 
         # glTF Mesh creation
 
@@ -392,9 +408,8 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         accessor2.type = pygltflib.VEC3
         accessor2.max = gltf_positions.max(axis=0).tolist()
         accessor2.min = gltf_positions.min(axis=0).tolist()
-
         gltf.accessors.append(accessor2)
-        # print("BBLOB: " + positions_binary_blob)
+
         binaryBlob = binaryBlob + positions_binary_blob
 
         mesh = pygltflib.Mesh()
@@ -412,24 +427,20 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
 
     end_time = time.time()
     elapsed_time = end_time - start_time
-    poly = len(cell.polygons)
-
-    if poly != 0 :
+    poly = len(cell.polygons)  
+    if(poly != 0): 
         print(f"Function took {elapsed_time:.5f} seconds {poly} polygons ({(elapsed_time/poly*1000):.3f}) ")   
-    else:
-        Warning("No polygons found in cell: " + cell.name)
-
+ 
     len(cell.polygons)
-
 gltf.set_binary_blob(binaryBlob)
-print(f"Binary blob size: {len(binaryBlob)} bytes")
-
 buffer.byteLength = len(binaryBlob)
 gltf.convert_buffers(BufferFormat.DATAURI)
 
 done_time = time.time()
 done_elapsed_time = done_time - end_time
 print(f"store took: {done_elapsed_time:.5f} seconds")
+
+
 
 def add_cell_node(c, parent_node, prefix):
     for ref in c.references:
@@ -442,7 +453,7 @@ def add_cell_node(c, parent_node, prefix):
         else:
             instance_node.name = ref.properties[61]
             
-        #print(prefix, instance_node.name, "(", ref.ref_cell.name + ")")
+        print(prefix, instance_node.name, "(", ref.ref_cell.name + ")")
         instance_node.translation = [ref.origin[0], ref.origin[1], 0]
         if(ref.rotation!=None):
             if(ref.rotation==90):
@@ -497,13 +508,13 @@ for layer in layerstack.values():
 scene.nodes.append(0)
 gltf.scene = 0
 
-##validate(gltf)  # will throw an error depending on the problem
-#summary(gltf) 
+# validate(gltf)  # will throw an error depending on the problem
+# summary(gltf) 
 
 
 print ("\nWriting glTF file:")
 gltf.save(gdsii_file_path + ".gltf")
 # gltf.save("output.gltf")
-#export_glb(gdsii_file_path + ".glb")
+export_glb(gdsii_file_path + ".gltf")
 
 print('Done.')
