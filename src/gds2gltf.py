@@ -149,7 +149,7 @@ gltf.buffers.append(buffer)
 
 for layer in layerstack:
     mainMaterial = pygltflib.Material()
-    mainMaterial.doubleSided = False
+    mainMaterial.doubleSided = True
     mainMaterial.name = layerstack[layer]['name']
     mainMaterial.pbrMetallicRoughness =  {
                     "baseColorFactor": layerstack[layer]['color'],
