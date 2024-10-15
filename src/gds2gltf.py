@@ -16,6 +16,13 @@ All units, including the units of the exported file, are the GDSII file's
 user units (often microns).
 """
 
+########## INPUT ##############################################################
+# First, the input file is read using the gdspy library, which interprets the
+# GDSII file and formats the data Python-style.
+# See https://gdspy.readthedocs.io/en/stable/index.html for documentation.
+# Second, the boundaries of each shape (polygon or path) are extracted for
+# further processing.
+
 import sys # read command-line arguments
 import gdspy # open gds file
 import numpy as np # fast math on lots of points
@@ -26,6 +33,10 @@ import pygltflib
 from pygltflib import BufferFormat
 from pygltflib.validator import validate, summary
 from pygltflib.utils import gltf2glb
+
+import multiprocessing
+
+multithread = False
 
 def read_layerstack_from_file(filename):
     """Reads a layerstack from a text file.
@@ -46,6 +57,7 @@ def read_layerstack_from_file(filename):
     Returns:
         A dictionary representing the layerstack.
     """
+    print('Reading layerstack file {}...'.format(layerstack_file_path))
 
     layerstack = {}
     with open(filename, 'r') as f:
@@ -115,56 +127,48 @@ def remove_duplicates(polygon, edges, tol=1e-6):
     
     return new_polygon, new_edges
 
+def add_cell_node(c, parent_node, prefix):
+        for ref in c.references:
+            instance_node = pygltflib.Node()
+            instance_node.extras = {}
+            instance_node.extras["type"] = ref.ref_cell.name;
+            if(ref.properties.get(61)==None):
+                # ref.ref_cell.name
+                instance_node.name = "???"; 
+            else:
+                instance_node.name = ref.properties[61]
+                
+            #print(prefix, instance_node.name, "(", ref.ref_cell.name + ")")
+            instance_node.translation = [ref.origin[0], ref.origin[1], 0]
+            if(ref.rotation!=None):
+                if(ref.rotation==90):
+                    instance_node.rotation = [ 0, 0, 0.7071068, 0.7071068 ]
+                elif(ref.rotation==180):
+                    instance_node.rotation = [ 0, 0, 1, 0 ]
+                elif(ref.rotation==270):
+                    instance_node.rotation = [ 0, 0, 0.7071068, -0.7071068 ]
+            if(ref.x_reflection):
+                instance_node.scale = [1,-1,1]
 
-# get the input file name
-if len(sys.argv) < 3:
-    print("Error: need exactly two files as command line arguments: GDSII file and layerstack file.")
-    sys.exit(0)
+            for layer in layerstack.values():
+                lib_name = ref.ref_cell.name + "_" + layer['name']
+                if(meshes_lib.get(lib_name)!=None):
+                    layer_node = pygltflib.Node()
+                    layer_node.name = lib_name
+                    layer_node.mesh = meshes_lib[lib_name]
+                    gltf.nodes.append(layer_node)
+                    instance_node.children.append(len(gltf.nodes)-1)
+            
+            if(len(ref.ref_cell.references)>0):
+                add_cell_node(ref.ref_cell, instance_node, prefix + "\t")
 
-gdsii_file_path = sys.argv[1]
-layerstack_file_path = sys.argv[2]
+            gltf.nodes.append(instance_node)
+            parent_node.children.append(len(gltf.nodes)-1)
 
-########## INPUT ##############################################################
-
-# First, the input file is read using the gdspy library, which interprets the
-# GDSII file and formats the data Python-style.
-# See https://gdspy.readthedocs.io/en/stable/index.html for documentation.
-# Second, the boundaries of each shape (polygon or path) are extracted for
-# further processing.
-
-# Read the layerstack from the text file
-print('Reading layerstack file {}...'.format(layerstack_file_path))
-layerstack = read_layerstack_from_file(layerstack_file_path)
-
-print('Reading GDSII file {}...'.format(gdsii_file_path))
-gdsii = gdspy.GdsLibrary()
-gdsii.read_gds(gdsii_file_path, units='import')
-
-
-gltf = pygltflib.GLTF2()
-scene = pygltflib.Scene()
-gltf.scenes.append(scene)
-buffer = pygltflib.Buffer()
-gltf.buffers.append(buffer)
-
-for layer in layerstack:
-    mainMaterial = pygltflib.Material()
-    mainMaterial.doubleSided = True
-    mainMaterial.name = layerstack[layer]['name']
-    mainMaterial.pbrMetallicRoughness =  {
-                    "baseColorFactor": layerstack[layer]['color'],
-                    "metallicFactor": 0.5,
-                    "roughnessFactor": 0.5
-                }
-    gltf.materials.append(mainMaterial)
-
-binaryBlob = bytes()
-
-print('Extracting polygons...')
-
-meshes_lib = {}
-
-for cell in gdsii.cells.values(): # loop through cells to read paths and polygons
+def process_cell(cell):
+    global end_time
+    # global binaryBlob
+    
     layers = {} # array to hold all geometry, sorted into layers
     
     start_time = time.time()
@@ -175,7 +179,7 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
     # see https://www.klayout.de/forum/discussion/1026/very-
     # important-gds-exported-from-k-layout-not-working-on-cadence-at-foundry
     if cell.name == '$$$CONTEXT_INFO$$$':
-        continue # skip this cell
+        return # skip this cell
 
     print ("\tpaths loop. total paths:" , len(cell.paths))
     # loop through paths in cell
@@ -242,6 +246,14 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
     num_triangles = {} # will store the number of triangles for each layer
     print(f"\t{len(layers)} layers found")
     # loop through all layers
+
+    node_names = []
+    curIndices = []
+    curPositions = []
+    layer_numbers = []
+    cur_gltf_indices = []
+    cur_gltf_positions = []
+
     for layer_number, polygons in layers.items():
         print(f"\tLayer {layer_number} has {len(polygons)} polygons, name: {layerstack[layer_number]['name']}")
         # print(f"\tLayer name: {layerstack[layer_number]['name']}")
@@ -366,8 +378,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         gltf_indices = []        
         indices_offset = 0
         for i,(_, poly_data, clockwise) in enumerate(polygons):         
-
-            
             p_positions_top = np.insert(poly_data['vertices'], 2, zmax, axis=1)
             p_positions_bottom = np.insert( poly_data['vertices'] , 2, zmin, axis=1)
             
@@ -401,58 +411,64 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         indices_binary_blob = gltf_indices.astype(np.uint32).flatten().tobytes() #triangles.flatten().tobytes()
         positions_binary_blob = gltf_positions.astype(np.float32).tobytes() #points.tobytes()
 
-        bufferView1 = pygltflib.BufferView()
-        bufferView1.buffer = 0
-        bufferView1.byteOffset = len(binaryBlob)
-        bufferView1.byteLength = len(indices_binary_blob)
-        bufferView1.target = pygltflib.ELEMENT_ARRAY_BUFFER
-        gltf.bufferViews.append(bufferView1)
+        node_names.append(cell.name)
+        curIndices.append(indices_binary_blob)
+        curPositions.append(positions_binary_blob)
+        layer_numbers.append(layer_number)
+        cur_gltf_indices.append(gltf_indices)
+        cur_gltf_positions.append(gltf_positions)
 
-        accessor1 = pygltflib.Accessor()
-        accessor1.bufferView = len(gltf.bufferViews)-1
-        accessor1.byteOffset = 0
-        accessor1.componentType = pygltflib.UNSIGNED_INT
-        accessor1.type = pygltflib.SCALAR
-        accessor1.count = gltf_indices.size
-        accessor1.max = [int(gltf_indices.max())]
-        accessor1.min = [int(gltf_indices.min())]
-        gltf.accessors.append(accessor1)
+        # bufferView1 = pygltflib.BufferView()
+        # bufferView1.buffer = 0
+        # bufferView1.byteOffset = len(binaryBlob)
+        # bufferView1.byteLength = len(indices_binary_blob)
+        # bufferView1.target = pygltflib.ELEMENT_ARRAY_BUFFER
+        # gltf.bufferViews.append(bufferView1)
 
-        binaryBlob = binaryBlob + indices_binary_blob
+        # accessor1 = pygltflib.Accessor()
+        # accessor1.bufferView = len(gltf.bufferViews)-1
+        # accessor1.byteOffset = 0
+        # accessor1.componentType = pygltflib.UNSIGNED_INT
+        # accessor1.type = pygltflib.SCALAR
+        # accessor1.count = gltf_indices.size
+        # accessor1.max = [int(gltf_indices.max())]
+        # accessor1.min = [int(gltf_indices.min())]
+        # gltf.accessors.append(accessor1)
 
-        bufferView2 = pygltflib.BufferView()
-        bufferView2.buffer = 0
-        bufferView2.byteOffset = len(binaryBlob)
-        bufferView2.byteLength = len(positions_binary_blob)
-        bufferView2.target = pygltflib.ARRAY_BUFFER
-        gltf.bufferViews.append(bufferView2)
+        # binaryBlob = binaryBlob + indices_binary_blob
 
-        positions_count = len(gltf_positions)
-        accessor2 = pygltflib.Accessor()
-        accessor2.bufferView =  len(gltf.bufferViews)-1
-        accessor2.byteOffset = 0
-        accessor2.componentType = pygltflib.FLOAT
-        accessor2.count = positions_count
-        accessor2.type = pygltflib.VEC3
-        accessor2.max = gltf_positions.max(axis=0).tolist()
-        accessor2.min = gltf_positions.min(axis=0).tolist()
+        # bufferView2 = pygltflib.BufferView()
+        # bufferView2.buffer = 0
+        # bufferView2.byteOffset = len(binaryBlob)
+        # bufferView2.byteLength = len(positions_binary_blob)
+        # bufferView2.target = pygltflib.ARRAY_BUFFER
+        # gltf.bufferViews.append(bufferView2)
 
-        gltf.accessors.append(accessor2)
-        # print("BBLOB: " + positions_binary_blob)
-        binaryBlob = binaryBlob + positions_binary_blob
+        # positions_count = len(gltf_positions)
+        # accessor2 = pygltflib.Accessor()
+        # accessor2.bufferView =  len(gltf.bufferViews)-1
+        # accessor2.byteOffset = 0
+        # accessor2.componentType = pygltflib.FLOAT
+        # accessor2.count = positions_count
+        # accessor2.type = pygltflib.VEC3
+        # accessor2.max = gltf_positions.max(axis=0).tolist()
+        # accessor2.min = gltf_positions.min(axis=0).tolist()
 
-        mesh = pygltflib.Mesh()
-        mesh_primitive = pygltflib.Primitive()
-        mesh_primitive.indices = len(gltf.accessors)-2
-        mesh_primitive.attributes.POSITION = len(gltf.accessors)-1
+        # gltf.accessors.append(accessor2)
+        # # print("BBLOB: " + positions_binary_blob)
+        # binaryBlob = binaryBlob + positions_binary_blob
 
-        mesh_primitive.material = list(layerstack).index(layer_number)
+        # mesh = pygltflib.Mesh()
+        # mesh_primitive = pygltflib.Primitive()
+        # mesh_primitive.indices = len(gltf.accessors)-2
+        # mesh_primitive.attributes.POSITION = len(gltf.accessors)-1
 
-        mesh.primitives.append(mesh_primitive)
+        # mesh_primitive.material = list(layerstack).index(layer_number)
 
+        # mesh.primitives.append(mesh_primitive)
 
-        gltf.meshes.append(mesh)
-        meshes_lib[node_name] = len(gltf.meshes)-1
+        # gltf.meshes.append(mesh)
+        # meshes_lib[node_name] = len(gltf.meshes)-1
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -463,91 +479,151 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
     else:
         Warning("No polygons found in cell: " + cell.name)
 
-    len(cell.polygons)
+    return (node_names, curIndices, curPositions, layer_numbers, cur_gltf_indices, cur_gltf_positions)
 
-gltf.set_binary_blob(binaryBlob)
-print(f"Binary blob size: {len(binaryBlob)} bytes")
+binaryBlob = bytes()
+meshes_lib = {}
+end_time = None
 
-buffer.byteLength = len(binaryBlob)
-gltf.convert_buffers(BufferFormat.DATAURI)
+if __name__ == "__main__":
+    t_start = time.time()
+    if len(sys.argv) < 3:
+        print("Error: need exactly two files as command line arguments: GDSII file and layerstack file.")
+        sys.exit(0)
 
-done_time = time.time()
-done_elapsed_time = done_time - end_time
-print(f"store took: {done_elapsed_time:.5f} seconds")
+    gdsii_file_path = sys.argv[1]
+    layerstack_file_path = sys.argv[2]
 
-def add_cell_node(c, parent_node, prefix):
-    for ref in c.references:
-        instance_node = pygltflib.Node()
-        instance_node.extras = {}
-        instance_node.extras["type"] = ref.ref_cell.name;
-        if(ref.properties.get(61)==None):
-            # ref.ref_cell.name
-            instance_node.name = "???"; 
-        else:
-            instance_node.name = ref.properties[61]
-            
-        #print(prefix, instance_node.name, "(", ref.ref_cell.name + ")")
-        instance_node.translation = [ref.origin[0], ref.origin[1], 0]
-        if(ref.rotation!=None):
-            if(ref.rotation==90):
-                instance_node.rotation = [ 0, 0, 0.7071068, 0.7071068 ]
-            elif(ref.rotation==180):
-                instance_node.rotation = [ 0, 0, 1, 0 ]
-            elif(ref.rotation==270):
-                instance_node.rotation = [ 0, 0, 0.7071068, -0.7071068 ]
-        if(ref.x_reflection):
-            instance_node.scale = [1,-1,1]
+    print('Reading GDSII file {}...'.format(gdsii_file_path))
+    gdsii = gdspy.GdsLibrary()
+    gdsii.read_gds(gdsii_file_path, units='import')
 
-        for layer in layerstack.values():
-            lib_name = ref.ref_cell.name + "_" + layer['name']
-            if(meshes_lib.get(lib_name)!=None):
-                layer_node = pygltflib.Node()
-                layer_node.name = lib_name
-                layer_node.mesh = meshes_lib[lib_name]
-                gltf.nodes.append(layer_node)
-                instance_node.children.append(len(gltf.nodes)-1)
+    gltf = pygltflib.GLTF2()
+    scene = pygltflib.Scene()
+    gltf.scenes.append(scene)
+    buffer = pygltflib.Buffer()
+    gltf.buffers.append(buffer)
+
+    layerstack = read_layerstack_from_file(layerstack_file_path)
+    for layer in layerstack:
+        mainMaterial = pygltflib.Material()
+        mainMaterial.doubleSided = True
+        mainMaterial.name = layerstack[layer]['name']
+        mainMaterial.pbrMetallicRoughness =  {
+                        "baseColorFactor": layerstack[layer]['color'],
+                        "metallicFactor": 0.5,
+                        "roughnessFactor": 0.5
+                    }
+        gltf.materials.append(mainMaterial)
+
+    print('Extracting polygons...')
+    if multithread:
+        num_workers = multiprocessing.cpu_count()    
+        with multiprocessing.Pool(num_workers) as pool:
+            results = pool.map(process_cell, gdsii.cells.values())
+    else:
+        results = []
+        for cell in gdsii.cells.values():
+            results.append(process_cell(cell))
+    end_time = time.time()
+
+    for result in results: # loop through cells to read paths and polygons
+        names, indices, positions, layer_numbers, gltf_indicies, gltf_positions = result
+
+        for i in range(len(indices)):            
+            bufferView1 = pygltflib.BufferView()
+            bufferView1.buffer = 0
+            bufferView1.byteOffset = len(binaryBlob)
+            bufferView1.byteLength = len(indices[i])
+            bufferView1.target = pygltflib.ELEMENT_ARRAY_BUFFER
+            gltf.bufferViews.append(bufferView1)
+
+            accessor1 = pygltflib.Accessor()
+            accessor1.bufferView = len(gltf.bufferViews)-1
+            accessor1.byteOffset = 0
+            accessor1.componentType = pygltflib.UNSIGNED_INT
+            accessor1.type = pygltflib.SCALAR
+            accessor1.count = gltf_indicies[i].size
+            accessor1.max = [int(gltf_indicies[i].max())]
+            accessor1.min = [int(gltf_indicies[i].min())]
+            gltf.accessors.append(accessor1)
+
+            binaryBlob = binaryBlob + indices[i]
+
+            bufferView2 = pygltflib.BufferView()
+            bufferView2.buffer = 0
+            bufferView2.byteOffset = len(binaryBlob)
+            bufferView2.byteLength = len(positions[i])
+            bufferView2.target = pygltflib.ARRAY_BUFFER
+            gltf.bufferViews.append(bufferView2)
+
+            positions_count = len(gltf_positions[i])
+            accessor2 = pygltflib.Accessor()
+            accessor2.bufferView =  len(gltf.bufferViews)-1
+            accessor2.byteOffset = 0
+            accessor2.componentType = pygltflib.FLOAT
+            accessor2.count = positions_count
+            accessor2.type = pygltflib.VEC3
+            accessor2.max = gltf_positions[i].max(axis=0).tolist()
+            accessor2.min = gltf_positions[i].min(axis=0).tolist()
+
+            gltf.accessors.append(accessor2)
+
+            binaryBlob = binaryBlob + positions[i]
+
+            mesh = pygltflib.Mesh()
+            mesh_primitive = pygltflib.Primitive()
+            mesh_primitive.indices = len(gltf.accessors)-2
+            mesh_primitive.attributes.POSITION = len(gltf.accessors)-1
+            mesh_primitive.material = list(layerstack).index(layer_numbers[i])
+            mesh.primitives.append(mesh_primitive)
+
+            gltf.meshes.append(mesh)
+            meshes_lib[names[i] + "_" + layerstack[layer_numbers[i]]['name']] = len(gltf.meshes)-1
+
+    gltf.set_binary_blob(binaryBlob)
+    print(f"Binary blob size: {len(binaryBlob)} bytes")
+
+    buffer.byteLength = len(binaryBlob)
+    gltf.convert_buffers(BufferFormat.DATAURI)
+
+    done_time = time.time()
+    done_elapsed_time = done_time - end_time
+    print(f"store took: {done_elapsed_time:.5f} seconds")
+
+    main_cell = gdsii.top_level()[0]
+
+    root_node = pygltflib.Node()
+    root_node.name = main_cell.name #"ROOT"
+    gltf.nodes.append(root_node)
+
+    print ("\nBuilding Scenegraph:")
+    print(root_node.name)
+
+    add_cell_node(main_cell, root_node, "\t")
         
-        if(len(ref.ref_cell.references)>0):
-            add_cell_node(ref.ref_cell, instance_node, prefix + "\t")
 
-        gltf.nodes.append(instance_node)
-        parent_node.children.append(len(gltf.nodes)-1)
+    for layer in layerstack.values():
+        lib_name = main_cell.name + "_" + layer['name']
+        if(meshes_lib.get(lib_name)!=None):
+            layer_node = pygltflib.Node()
+            layer_node.name = lib_name
+            layer_node.mesh = meshes_lib[lib_name]
+            gltf.nodes.append(layer_node)
+            root_node.children.append(len(gltf.nodes)-1)
 
+    scene.nodes.append(0)
+    gltf.scene = 0
 
-main_cell = gdsii.top_level()[0]
-
-root_node = pygltflib.Node()
-root_node.name = main_cell.name #"ROOT"
-gltf.nodes.append(root_node)
-
-print ("\nBuilding Scenegraph:")
-print(root_node.name)
-
-add_cell_node(main_cell, root_node, "\t")
-    
-
-for layer in layerstack.values():
-    lib_name = main_cell.name + "_" + layer['name']
-    if(meshes_lib.get(lib_name)!=None):
-        layer_node = pygltflib.Node()
-        layer_node.name =lib_name
-        layer_node.mesh = meshes_lib[lib_name]
-        gltf.nodes.append(layer_node)
-        root_node.children.append(len(gltf.nodes)-1)
+    ##validate(gltf)  # will throw an error depending on the problem
+    #summary(gltf) 
 
 
+    print ("\nWriting glTF file:")
+    gltf.save(gdsii_file_path + ".gltf")
+    # gltf.save("output.gltf")
+    #export_glb(gdsii_file_path + ".glb")
 
-
-scene.nodes.append(0)
-gltf.scene = 0
-
-##validate(gltf)  # will throw an error depending on the problem
-#summary(gltf) 
-
-
-print ("\nWriting glTF file:")
-gltf.save(gdsii_file_path + ".gltf")
-# gltf.save("output.gltf")
-#export_glb(gdsii_file_path + ".glb")
-
-print('Done.')
+    print('Done.')
+    t_end = time.time()
+    print(f"Total time: {t_end - t_start:.5f} seconds")
