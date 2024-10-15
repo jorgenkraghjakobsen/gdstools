@@ -69,6 +69,52 @@ def export_glb(gltf_filename):
     gltf2glb(gltf_filename)
     print(f"GLB file saved as {gltf_filename.replace('.gltf', '.glb')}")
 
+def remove_duplicates(polygon, edges, tol=1e-6):
+    """
+    Removes duplicate or nearly identical vertices from the polygon and updates the edges list.
+    
+    Args:
+        polygon (list of lists): List of vertices (2D points).
+        edges (list of lists): List of edges (pairs of vertex indices).
+        tol (float): Tolerance for determining if two vertices are identical (default 1e-6).
+        
+    Returns:
+        new_polygon (list of lists): Deduplicated list of vertices.
+        new_edges (list of lists): Updated list of edges using new vertex indices.
+    """
+    # Convert the polygon list to a numpy array for efficient distance calculation
+    polygon_np = np.array(polygon)
+    
+    # List to store unique vertices
+    new_polygon = []
+    # Dictionary to map old vertex index to new index after removing duplicates
+    vertex_map = {}
+    
+    # Loop over the polygon vertices
+    for i, vertex in enumerate(polygon_np):
+        # Check if the vertex is close to any of the already added unique vertices
+        found_duplicate = False
+        for j, unique_vertex in enumerate(new_polygon):
+            if np.linalg.norm(vertex - unique_vertex) < tol:  # Compare using tolerance
+                vertex_map[i] = j  # Map the old index to the existing unique vertex index
+                found_duplicate = True
+                break
+        
+        # If no duplicate is found, add the vertex to the new polygon
+        if not found_duplicate:
+            vertex_map[i] = len(new_polygon)  # Map the old index to the new unique index
+            new_polygon.append(vertex)
+    
+    # Convert the unique vertices list back to a regular list
+    new_polygon = np.array(new_polygon).tolist()
+    
+    # Update the edges with the new vertex indices
+    new_edges = []
+    for edge in edges:
+        new_edges.append([vertex_map[edge[0]], vertex_map[edge[1]]])
+    
+    return new_polygon, new_edges
+
 
 # get the input file name
 if len(sys.argv) < 3:
@@ -142,7 +188,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         layers[lnum] = [] if not lnum in layers else layers[lnum]
         # add paths (converted to polygons) that layer
         for poly in path.get_polygons():
-            print(poly)
             layers[lnum].append((poly, None, False))
 
     print ("\tpolygons loop. total polygons:" , len(cell.polygons))
@@ -209,7 +254,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
 
         # loop through polygons in layer
         for index, (polygon, _, _) in enumerate(polygons):
-
             num_polygon_points = len(polygon)
 
             # determine whether polygon points are CW or CCW
@@ -217,7 +261,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
             for i, v1 in enumerate(polygon): # loop through vertices
                 v2 = polygon[(i+1) % num_polygon_points]
                 area += (v2[0]-v1[0])*(v2[1]+v1[1]) # integrate area
-
             clockwise = area > 0
 
             # GDSII implements holes in polygons by making the polygon edge
@@ -225,8 +268,8 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
             # this confuses the triangulation library, which fills the holes
             # with extra triangles. Avoid this by moving each edge back a
             # very small amount so that no two edges of the same polygon overlap.
-
             # Define a small threshold to avoid division by very small numbers (to prevent NaNs or infinities)
+
             epsilon = 1e-8  
             delta = 0.00001  # Amount to inset each vertex by (smaller values have caused issues in the past)
 
@@ -267,8 +310,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
             # Each vertex is moved inward along both the normal to its adjacent edges
             polygon = points_i - delta * normal_ij - delta * normal_ik
 
-
-
             # In an extreme case of the above, the polygon edge doubles back on
             # itself on the same line, resulting in a zero-width segment. I've
             # seen this happen, e.g., with a capital "N"-shaped hole, where
@@ -290,9 +331,13 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
             # this is disabled. TODO: figure out why this happens and fix it.
             use_holes = False
 
+
             # triangulate: compute triangles to fill polygon
             point_array = np.arange(num_polygon_points)
+
             edges = np.transpose(np.stack((point_array, np.roll(point_array, 1))))
+            polygon, edges = remove_duplicates(polygon, edges)
+            
             if use_holes:
                 triangles = triangle.triangulate(dict(vertices=polygon,
                                                     segments=edges,
@@ -352,7 +397,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
                 gltf_indices = np.append(gltf_indices, p_indices + indices_offset, axis=0)            
             indices_offset += len(p_positions)
       
-
         
         indices_binary_blob = gltf_indices.astype(np.uint32).flatten().tobytes() #triangles.flatten().tobytes()
         positions_binary_blob = gltf_positions.astype(np.float32).tobytes() #points.tobytes()
