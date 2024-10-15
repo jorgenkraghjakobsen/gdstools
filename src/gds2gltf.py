@@ -36,7 +36,7 @@ from pygltflib.utils import gltf2glb
 
 import multiprocessing
 
-multithread = False
+multithread = True
 
 def read_layerstack_from_file(filename):
     """Reads a layerstack from a text file.
