@@ -35,6 +35,7 @@ from pygltflib.validator import validate, summary
 from pygltflib.utils import gltf2glb
 
 import multiprocessing
+import os
 
 multithread = True
 
@@ -57,7 +58,7 @@ def read_layerstack_from_file(filename):
     Returns:
         A dictionary representing the layerstack.
     """
-    print('Reading layerstack file {}...'.format(layerstack_file_path))
+    # print('Reading layerstack file {}...'.format(layerstack_file_path))
 
     layerstack = {}
     with open(filename, 'r') as f:
@@ -481,18 +482,41 @@ def process_cell(cell):
 
     return (node_names, curIndices, curPositions, layer_numbers, cur_gltf_indices, cur_gltf_positions)
 
+def get_unique_materials(cell):
+    materials = set()  # Use a set for faster lookup
+    
+    # Process paths
+    for path in cell.paths:
+        layer_and_type = (path.layers[0], path.datatypes[0])
+        if layer_and_type not in materials:
+            materials.add(layer_and_type)
+    
+    # Process polygons
+    for polygon in cell.polygons:
+        layer_and_type = (polygon.layers[0], polygon.datatypes[0])
+        if layer_and_type not in materials:
+            materials.add(layer_and_type)
+        
+    # Convert the set back to a list if needed (optional)
+    return list(materials)
+
+
 binaryBlob = bytes()
 meshes_lib = {}
 end_time = None
+look_for_places = [
+    "/usr/local/share/gdst",
+    ".",
+    "./layerstack"
+]
 
 if __name__ == "__main__":
     t_start = time.time()
-    if len(sys.argv) < 3:
-        print("Error: need exactly two files as command line arguments: GDSII file and layerstack file.")
+    if len(sys.argv) < 2:
+        print("Error: need at least one file as command line argument: GDSII file.")
         sys.exit(0)
 
     gdsii_file_path = sys.argv[1]
-    layerstack_file_path = sys.argv[2]
 
     print('Reading GDSII file {}...'.format(gdsii_file_path))
     gdsii = gdspy.GdsLibrary()
@@ -504,8 +528,62 @@ if __name__ == "__main__":
     buffer = pygltflib.Buffer()
     gltf.buffers.append(buffer)
 
-    layerstack = read_layerstack_from_file(layerstack_file_path)
+    if len(sys.argv) == 2:
+        print("Trying to guess layerstack file name from GDSII data types")
+        layerstacks = []
+        for place in look_for_places:
+            # Get all files from the directory
+            try:
+                files = os.listdir(place)
+                for file in files:
+                    if file.endswith(".txt"):
+                        layerstack_file_path = os.path.join(place, file)
+                        try:
+                            layerstack = read_layerstack_from_file(layerstack_file_path)
+                            if layerstack not in layerstacks:
+                                layerstacks.append(layerstack)
+
+                        except ValueError:
+                            print(f"Error reading layerstack file: {layerstack_file_path}")
+
+            except FileNotFoundError:
+                continue
+        
+        best_match = 0
+
+        for ls in layerstacks:
+            # if multithread:
+            #     num_workers = multiprocessing.cpu_count()
+            #     print(f"Using {num_workers} workers to get unique materials")
+            #     with multiprocessing.Pool(num_workers) as pool:
+            #         results = pool.map(get_unique_materials, gdsii.cells.values())
+            # else:
+            results = []
+            for cell in gdsii.cells.values():
+                results.append(get_unique_materials(cell))
+            
+            # Get unique materials from all cells
+            unique_materials = []
+            for result in results:
+                for material in result:
+                    if material not in unique_materials:
+                        unique_materials.append(material)
+
+            nMatches = 0
+            for material in unique_materials:
+                if (material[0], material[1]) in ls:
+                    nMatches += 1
+            if nMatches > best_match:
+                best_match = nMatches
+                layerstack = ls
+            print(f"Layerstack: {ls.keys()} matches {nMatches} out of {len(unique_materials)}")
+            
+    else:
+        layerstack_file_path = sys.argv[2]
+        layerstack = read_layerstack_from_file(layerstack_file_path)
+
     for layer in layerstack:
+        
         mainMaterial = pygltflib.Material()
         mainMaterial.doubleSided = True
         mainMaterial.name = layerstack[layer]['name']
@@ -518,7 +596,8 @@ if __name__ == "__main__":
 
     print('Extracting polygons...')
     if multithread:
-        num_workers = multiprocessing.cpu_count()    
+        num_workers = multiprocessing.cpu_count()
+        print(f"Using {num_workers} workers")
         with multiprocessing.Pool(num_workers) as pool:
             results = pool.map(process_cell, gdsii.cells.values())
     else:

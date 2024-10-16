@@ -82,8 +82,7 @@ int main(int argc, char* argv[]) {
             }
 
             if(!result.count("layerstack")) {
-                printf("Error: Layer stack file not specified\n");
-                return 1;
+                layerstack = "";
             } else {
                 if(!check_file_exists(result["layerstack"].as<std::string>())) {
                     if(!check_file_exists("/usr/local/share/gdst/" + result["layerstack"].as<std::string>())) {
@@ -95,8 +94,7 @@ int main(int argc, char* argv[]) {
                     }
 
                 } else {
-                layerstack = result["layerstack"].as<std::string>();
-
+                    layerstack = result["layerstack"].as<std::string>();
                 }
             }
 
@@ -228,7 +226,14 @@ int open_3d_cell(const std::string& filename, const std::string& cell_name) {
 
 int export_gltf_file(const std::string& filename, const std::string& layerstack) {
     // Call the Python script to perform the conversion
-    std::string command = "gds2gltf " + filename + " " + layerstack;
+    // If layerstack is not specified, dont include it in the command
+    std::string command;
+    if(layerstack == "") {
+        command = "gds2gltf " + filename;
+    } else {
+        command = "gds2gltf " + filename + " " + layerstack;
+
+    }
     int result = system(command.c_str());
     
     if (result == 0) {
