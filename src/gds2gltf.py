@@ -27,6 +27,7 @@ import sys # read command-line arguments
 import gdspy # open gds file
 import numpy as np # fast math on lots of points
 import triangle # triangulate polygons
+import mapbox_earcut #alternative triangulation library
 import time 
 
 import pygltflib
@@ -37,7 +38,22 @@ from pygltflib.utils import gltf2glb
 import multiprocessing
 import os
 
-multithread = True
+#from numba import njit
+
+multithread = False
+
+#Just in time compilation for the compute_area function
+# 
+# @njit
+# def compute_area(polygon):
+    # area = 0.0
+    # num_points = len(polygon)
+    # for i in range(num_points):
+        # v1 = polygon[i]
+        # v2 = polygon[(i + 1) % num_points]
+        # area += (v2[0] - v1[0]) * (v2[1] + v1[1])
+    # return area
+# 
 
 def read_layerstack_from_file(filename):
     """Reads a layerstack from a text file.
@@ -194,7 +210,7 @@ def process_cell(cell):
         # add paths (converted to polygons) that layer
         for poly in path.get_polygons():
             layers[lnum].append((poly, None, False))
-
+            
     print ("\tpolygons loop. total polygons:" , len(cell.polygons))
 
     for polygon in cell.polygons:
@@ -269,7 +285,8 @@ def process_cell(cell):
         for index, (polygon, _, _) in enumerate(polygons):
             num_polygon_points = len(polygon)
 
-            # determine whether polygon points are CW or CCW
+            
+            #determine whether polygon points are CW or CCW
             area = 0
             for i, v1 in enumerate(polygon): # loop through vertices
                 v2 = polygon[(i+1) % num_polygon_points]
@@ -282,48 +299,51 @@ def process_cell(cell):
             # with extra triangles. Avoid this by moving each edge back a
             # very small amount so that no two edges of the same polygon overlap.
             # Define a small threshold to avoid division by very small numbers (to prevent NaNs or infinities)
+            #print(polygon)  
 
-            epsilon = 1e-8  
-            delta = 0.00001  # Amount to inset each vertex by (smaller values have caused issues in the past)
-
-            # Step 1: Extract polygon points
-            points_i = polygon  # Get the list of points representing the polygon vertices
-
-            # Step 2: Shift points to get neighbors
-            points_j = np.roll(points_i, -1, axis=0)  # Shift points forward by 1 (next point)
-            points_k = np.roll(points_i, 1, axis=0)   # Shift points backward by 1 (previous point)
-
-            # Step 3: Calculate normals for edges (between consecutive vertices)
-            # Normal between current and next vertex (i -> j)
-            normal_ij = np.stack((points_j[:, 1] - points_i[:, 1],  # y-component difference
-                                points_i[:, 0] - points_j[:, 0]), axis=1)  # x-component difference (perpendicular)
-
-            # Normal between current and previous vertex (i -> k)
-            normal_ik = np.stack((points_i[:, 1] - points_k[:, 1],  # y-component difference
-                                points_k[:, 0] - points_i[:, 0]), axis=1)  # x-component difference (perpendicular)
-
-            # Step 4: Compute the lengths of these normal vectors
-            length_ij = np.linalg.norm(normal_ij, axis=1)
-            length_ik = np.linalg.norm(normal_ik, axis=1)
-
-            # Step 5: Handle small lengths to avoid division by near-zero values
-            length_ij[length_ij < epsilon] = 1  # Set very small lengths to 1 to avoid division issues
-            length_ik[length_ik < epsilon] = 1  # Set very small lengths to 1
-
-            # Step 6: Normalize the normals (unit vectors)
-            normal_ij /= np.stack((length_ij, length_ij), axis=1)  # Normalize by dividing by length
-            normal_ik /= np.stack((length_ik, length_ik), axis=1)  # Normalize by dividing by length
-
-            # Step 7: Adjust direction of normals if polygon is oriented clockwise
-            if clockwise:
-                normal_ij = -normal_ij  # Reverse direction for clockwise orientation
-                normal_ik = -normal_ik
-
-            # Step 8: Move each vertex inward by 'delta' along its two edge normals
-            # Each vertex is moved inward along both the normal to its adjacent edges
-            polygon = points_i - delta * normal_ij - delta * normal_ik
-
-            # In an extreme case of the above, the polygon edge doubles back on
+            if num_polygon_points > 4:
+                #printf("Polygon has more than 4 points, skipping")
+                epsilon = 1e-8  
+                delta = 0.000001  # Amount to inset each vertex by (smaller values have caused issues in the past)
+# 
+            #Step 1: Extract polygon points
+                points_i = polygon  # Get the list of points representing the polygon vertices
+# 
+            #Step 2: Shift points to get neighbors
+                points_j = np.roll(points_i, -1, axis=0)  # Shift points forward by 1 (next point)
+                points_k = np.roll(points_i, 1, axis=0)   # Shift points backward by 1 (previous point)
+# 
+            #Step 3: Calculate normals for edges (between consecutive vertices)
+            #Normal between current and next vertex (i -> j)
+                normal_ij = np.stack(( points_j[:, 1] - points_i[:, 1],  # y-component difference
+                                   points_i[:, 0] - points_j[:, 0]), axis=1)  # x-component difference (perpendicular)
+# 
+            #Normal between current and previous vertex (i -> k)
+                normal_ik = np.stack(( points_i[:, 1] - points_k[:, 1],  # y-component difference
+                                   points_k[:, 0] - points_i[:, 0]), axis=1)  # x-component difference (perpendicular)
+# 
+            #Step 4: Compute the lengths of these normal vectors
+                length_ij = np.linalg.norm(normal_ij, axis=1)
+                length_ik = np.linalg.norm(normal_ik, axis=1)
+# 
+            #Step 5: Handle small lengths to avoid division by near-zero values
+                length_ij[length_ij < epsilon] = 1  # Set very small lengths to 1 to avoid division issues
+                length_ik[length_ik < epsilon] = 1  # Set very small lengths to 1
+# 
+            #Step 6: Normalize the normals (unit vectors)
+                normal_ij /= np.stack((length_ij, length_ij), axis=1)  # Normalize by dividing by length
+                normal_ik /= np.stack((length_ik, length_ik), axis=1)  # Normalize by dividing by length
+# 
+            #Step 7: Adjust direction of normals if polygon is oriented clockwise
+                if clockwise:
+                    normal_ij = -normal_ij  # Reverse direction for clockwise orientation
+                    normal_ik = -normal_ik
+# 
+            #Step 8: Move each vertex inward by 'delta' along its two edge normals
+            #Each vertex is moved inward along both the normal to its adjacent edges
+                polygon = points_i - delta * normal_ij - delta * normal_ik
+# 
+            #In an extreme case of the above, the polygon edge doubles back on
             # itself on the same line, resulting in a zero-width segment. I've
             # seen this happen, e.g., with a capital "N"-shaped hole, where
             # the hole split line cuts out the "N" shape but splits apart to
@@ -333,8 +353,8 @@ def process_cell(cell):
             # the original edge and the delta-shifted edge, as outside the polygon.
             # These parts will be removed from the triangulation, and this solves
             # just this case with no adverse affects elsewhere.
-            hole_delta = 0.00001 # small fraction of delta
-            holes = 0.5*(points_j+points_i) - hole_delta*delta*normal_ij
+                hole_delta = 0.00001 # small fraction of delta
+                holes = 0.5*(points_j+points_i) - hole_delta*delta*normal_ij
             # HOWEVER: sometimes this causes a segmentation fault in the triangle
             # library. I've observed this as a result of certain various polygons.
             # Frustratingly, the fault can be bypassed by *rotating the polygons*
@@ -346,6 +366,27 @@ def process_cell(cell):
 
 
             # triangulate: compute triangles to fill polygon
+            if num_polygon_points > 4:
+                print(polygon)
+                flat_polygon = polygon.flatten().astype(np.float64)
+                print(flat_polygon)
+                
+                holes = np.array([], dtype=np.uint32)
+
+                # Perform triangulation using earcut
+                indices = mapbox_earcut.triangulate_float64(flat_polygon,holes)
+                
+                print(indices)
+
+                if len(indices) == 0:
+                    continue  # Skip empty triangulations
+    
+                triangles = {'triangles': np.array(indices).reshape(-1, 3)}
+                poly_data = {'vertices': polygon}
+                polygons[index] = (poly_data, triangles, clockwise)
+                continue  # Move to next polygon  
+
+
             point_array = np.arange(num_polygon_points)
 
             edges = np.transpose(np.stack((point_array, np.roll(point_array, 1))))
@@ -366,7 +407,9 @@ def process_cell(cell):
             # triangulation will be copied on the top and bottom of the layer.
             num_triangles[layer_number] += num_polygon_points*2 + \
                                         len(triangles['triangles'])*2
+            
             polygons[index] = (polygon, triangles, clockwise)
+            #print(polygons)
 
         # glTF Mesh creation
 
